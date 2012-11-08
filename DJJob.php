@@ -114,10 +114,10 @@ class DJWorker extends DJBase {
 
         list($hostname, $pid) = array(trim(`hostname`), getmypid());
         $this->name = "host::$hostname pid::$pid";
-		
+
 		$this->pidFile = CakePlugin::path('CakeDjjob') . 'Config' . DS .'Pid' . DS . $this->queue .'.pid';
 		$this->pid = $pid;
-		
+
 
         if (function_exists("pcntl_signal")) {
             pcntl_signal(SIGTERM, array($this, "handleSignal"));
@@ -163,12 +163,9 @@ class DJWorker extends DJBase {
             AND    (locked_at IS NULL OR locked_by = ?)
             AND    failed_at IS NULL
             AND    attempts < ?
-            ORDER BY created_at DESC
-            LIMIT  10
+            ORDER BY created_at ASC
+            LIMIT  1
         ", array($this->queue, $this->name, $this->max_attempts));
-
-        // randomly order the 10 to prevent deadlock issues
-        shuffle($rs);
 
         foreach ($rs as $r) {
             $job = new DJJob($this->name, $r["id"], array(
@@ -186,10 +183,10 @@ class DJWorker extends DJBase {
 			$this->log(sprintf('Already running (PID: %s)', $pid), self::INFO);
 			exit;
 		}
-		
+
         $this->log("[JOB] Starting worker {$this->name} on queue::{$this->queue}", self::INFO);
 		$this->__writePid();
-		
+
         $count = 0;
         $job_count = 0;
         try {
@@ -214,29 +211,29 @@ class DJWorker extends DJBase {
 
         $this->log("[JOB] worker shutting down after running {$job_count} jobs, over {$count} polling iterations", self::INFO);
     }
-	
+
 	/**
 	 * @brief check if the process is still running
-	 * 
-	 * @return boolean 
+	 *
+	 * @return boolean
 	 */
 	private function __checkPid() {
 		if(!is_file($this->pidFile)) {
 			return false;
 		}
-		
+
 		$File = new File($this->pidFile);
 		$pid = $File->read();
-		
+
 		if(posix_getsid($pid)) {
 			return $pid;
 		}
-		
+
 		return false;
 	}
-	
+
 	/**
-	 * @brief save the current pid to disk for future checks 
+	 * @brief save the current pid to disk for future checks
 	 */
 	private function __writePid() {
 		$File = new File($this->pidFile, true);
